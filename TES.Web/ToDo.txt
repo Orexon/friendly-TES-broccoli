@@ -1,0 +1,14 @@
+﻿Refactor start-up to different different associated Documents and classes. 
+Validate token Issuer(requires provider? research) and reciever. Authorization Filters.
+Exception Filters. Filter exceptions before they reach the app.
+
+cascade delete on test delete? 
+Fix TimeSpan. 
+
+Result display logika.
+
+File compile problem.
+
+Complete Dto validations. Complete all validations.
+
+Rename Classes to represent the things better. pvz : Question -> ProgrammingTask.
