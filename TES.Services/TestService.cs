@@ -271,7 +271,7 @@ namespace TES.Services.Interface
                 throw new ArgumentNullException($"TestLink with {id} does not exist");
             }
             TestLink testLink = _context.TestLinks.Where(x => x.Id == id).FirstOrDefault();
-            testLink.UrlLink = "http://localhost:44372/api/activeTest/" + testLink.Id.ToString();
+            testLink.UrlLink = "http://localhost:44372/activeTest/" + testLink.Id.ToString();
 
             try
             {
