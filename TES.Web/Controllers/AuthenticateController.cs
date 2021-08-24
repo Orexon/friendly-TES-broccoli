@@ -65,13 +65,17 @@ namespace TES.Web.Controllers
 
                 return Ok(new
                 {
+
                     token = new JwtSecurityTokenHandler().WriteToken(token),
-                    expiration = token.ValidTo,
+                    user.Id,
+                    user.Email,
                     user.UserName,
+                    user.FirstName,
+                    user.LastName
                 });
             }
 
-            return Unauthorized();
+            return Unauthorized(new ResponseDto { Status = "Error", Message = "Login Info incorrect. Please try again." });
         }
 
     }
