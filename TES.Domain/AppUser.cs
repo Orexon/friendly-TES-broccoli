@@ -9,7 +9,7 @@ namespace TES.Domain
 {
     public class AppUser : IdentityUser<Guid> //<Guid> -> Converting Default ID from string to Guid.
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
+        public string Firstname { get; set; }
+        public string Lastname { get; set; }
     }
 }

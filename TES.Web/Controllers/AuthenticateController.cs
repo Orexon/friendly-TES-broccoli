@@ -69,8 +69,8 @@ namespace TES.Web.Controllers
                     user.Id,
                     user.Email,
                     user.UserName,
-                    user.FirstName,
-                    user.LastName
+                    user.Firstname,
+                    user.Lastname
                 });
             }
 

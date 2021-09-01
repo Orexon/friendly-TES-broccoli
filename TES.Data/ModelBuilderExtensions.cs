@@ -30,8 +30,8 @@ namespace TES.Data
             builder.Entity<AppUser>().HasData(new AppUser
             {
                 Id = ADMIN_ID,
-                FirstName = "Nimda",
-                LastName = "Nimdaman",
+                Firstname = "Nimda",
+                Lastname = "Nimdaman",
                 Email = "admin@admin.com",
                 NormalizedEmail = "ADMIN@ADMIN.COM",
                 EmailConfirmed = true,

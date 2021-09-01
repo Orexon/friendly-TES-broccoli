@@ -40,9 +40,9 @@ namespace TES.Services
             {
                 Id = user.Id,
                 Email = user.Email,
-                UserName = user.UserName,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
+                Username = user.UserName,
+                Firstname = user.Firstname,
+                Lastname = user.Lastname,
             };
             return appUserDto;
         }
@@ -66,8 +66,8 @@ namespace TES.Services
                 Email = adminDto.Email,
                 SecurityStamp = Guid.NewGuid().ToString(),
                 UserName = adminDto.Username,
-                FirstName = adminDto.FirstName,
-                LastName = adminDto.LastName,
+                Firstname = adminDto.FirstName,
+                Lastname = adminDto.LastName,
             };
 
             var result = await _userManager.CreateAsync(user, adminDto.ConfirmPassword);
@@ -114,9 +114,9 @@ namespace TES.Services
             AppUser user = _context.Users.Where(x => x.Id == appUserDto.Id).FirstOrDefault();
 
 
-            user.FirstName = appUserDto.FirstName;
-            user.LastName = appUserDto.LastName;
-            user.UserName = appUserDto.UserName;
+            user.Firstname = appUserDto.Firstname;
+            user.Lastname = appUserDto.Lastname;
+            user.UserName = appUserDto.Username;
             user.Email = appUserDto.Email;
 
             if (appUserDto.ConfirmPassword == null)
@@ -124,8 +124,6 @@ namespace TES.Services
                 throw new ArgumentException("Edit data not found, please try again!");
             }
             user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, appUserDto.ConfirmPassword);
-
-            
 
             if (!UserExists(appUserDto.Id))
             {
