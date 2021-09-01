@@ -104,7 +104,7 @@ namespace TES.Services
             };
         }
 
-        public async Task<bool> UpdateUser(AppUserDto appUserDto)
+        public async Task<bool> UpdateUser(EditAppUserDto appUserDto)
         {
             if (appUserDto == null)
             {
@@ -113,19 +113,28 @@ namespace TES.Services
 
             AppUser user = _context.Users.Where(x => x.Id == appUserDto.Id).FirstOrDefault();
 
+
             user.FirstName = appUserDto.FirstName;
             user.LastName = appUserDto.LastName;
             user.UserName = appUserDto.UserName;
             user.Email = appUserDto.Email;
 
-            if(!UserExists(appUserDto.Id))
+            if (appUserDto.ConfirmPassword == null)
             {
-                throw new ArgumentNullException($"User with such {appUserDto.Id} does not exist");
+                throw new ArgumentException("Edit data not found, please try again!");
+            }
+            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, appUserDto.ConfirmPassword);
+
+            
+
+            if (!UserExists(appUserDto.Id))
+            {
+                throw new ArgumentNullException("Such user no longer exist");
             }
 
             try
             {
-                _context.Users.Update(user);
+                await _userManager.UpdateAsync(user);
                 await _context.SaveChangesAsync();
                 return true;
             }

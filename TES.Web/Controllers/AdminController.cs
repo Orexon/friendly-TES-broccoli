@@ -108,7 +108,7 @@ namespace TES.Web.Controllers
         //PATCH:"Edit" api/Admin/editUser/Guid
         [HttpPatch]
         [Route("editTest/{id}")]
-        public async Task<IActionResult> UpdateUser([FromBody] AppUserDto appUserDto)
+        public async Task<IActionResult> UpdateUser([FromBody] EditAppUserDto appUserDto)
         {
             try
             {

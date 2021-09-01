@@ -32,7 +32,6 @@ namespace TES.Web.Controllers
             _configuration = configuration;
         }
 
-
         [HttpPost]
         [Route("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto loginDto)
@@ -75,8 +74,7 @@ namespace TES.Web.Controllers
                 });
             }
 
-            return Unauthorized(new ResponseDto { Status = "Error", Message = "Login Info incorrect. Please try again." });
+            return Unauthorized(new ResponseDto { Status = "Error", Message = "Login info incorrect." });
         }
-
     }
 }

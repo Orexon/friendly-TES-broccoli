@@ -17,7 +17,7 @@ namespace TES.Services.Interface
 
         Task<int> DeleteUser(Guid id);
 
-        Task<bool> UpdateUser(AppUserDto appUserDto);
+        Task<bool> UpdateUser(EditAppUserDto appUserDto);
 
         bool UserExists(Guid id);
 
