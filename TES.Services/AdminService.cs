@@ -110,7 +110,11 @@ namespace TES.Services
             {
                 throw new ArgumentException("Edit data not found, please try again!");
             }
-
+            var usernameExists = _context.Users.Where(x => x.UserName == appUserDto.Username).FirstOrDefault();
+            if (usernameExists != null)
+            {
+                throw new ArgumentException("User with that Username already exists!");
+            }
             AppUser user = _context.Users.Where(x => x.Id == appUserDto.Id).FirstOrDefault();
 
 
