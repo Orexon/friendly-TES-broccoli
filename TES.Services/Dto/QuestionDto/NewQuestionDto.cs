@@ -11,7 +11,6 @@ namespace TES.Services.Dto.QuestionDto
 {
     public class NewQuestionDto
     {
-        [StringLength(maximumLength: 24, MinimumLength = 3, ErrorMessage = "The question Name must be atleast 3 and at max 24 characters long.")]
         [Required(ErrorMessage = "Question must have a name!")]
         public string Name { get; set; }
 

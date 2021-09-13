@@ -54,14 +54,14 @@ namespace TES.Services
             {
                 throw new ArgumentException("Test is not yet active. Try again later!");
             }
-
+                
             TestDto testDto = new TestDto
             {
                 Name = test.Name,
                 Description = test.Description,
                 Questions = test.Questions,
                 TestType = test.TestType,
-                TimeLimit = test.TimeLimit,
+                TimeLimit = TimeSpan.FromTicks(test.TimeLimit),
                 ValidFrom = test.ValidFrom,
                 ValidTo = test.ValidTo,
                 TestUrl = test.UrlLinkId,

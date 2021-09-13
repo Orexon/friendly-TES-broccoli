@@ -32,8 +32,16 @@ namespace TES.Web.Controllers
         [Produces(typeof(List<Test>))]
         public async Task<IActionResult> GetAllTests()
         {
+
             List<Test> tests = await _testService.GetAllTests();
-            return Ok(tests);
+
+            if (tests.Count != 0)
+            {
+                return Ok(tests);
+            }
+            else {
+                return NotFound(new ResponseDto { Status = "Error", Message = "Curently there are no tests" });
+            }
         }
 
         // GET: api/Test/getTest/Guid
@@ -89,12 +97,11 @@ namespace TES.Web.Controllers
         [HttpPost]
         [Route("createTest")]
         [Produces(typeof(Test))]
-        public async Task<IActionResult> CreateTest([FromBody] NewTestDto newTest)
+        public async Task<IActionResult> CreateTest([FromForm] NewTestDto newTest)
         {
             try
             {
                 Test test = await _testService.CreateTest(newTest);
-                await _testService.GenerateUrl(test.UrlLinkId.Id);
                 return Ok(test);
             }
             catch (Exception e)

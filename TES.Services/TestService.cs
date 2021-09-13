@@ -54,6 +54,8 @@ namespace TES.Services.Interface
 
             Test test = _context.Tests.Where(x => x.Id == id).FirstOrDefault();
 
+            var timelimit = TimeSpan.FromTicks(test.TimeLimit);
+
             EditTestDto editTestDto = new EditTestDto
             {
                 Id = test.Id,
@@ -62,7 +64,7 @@ namespace TES.Services.Interface
                 Questions = test.Questions, 
                 ValidFrom = test.ValidFrom, 
                 ValidTo = test.ValidTo,
-                TimeLimit = test.TimeLimit,
+                TimeLimit = timelimit.TotalMinutes,
                 TestType= test.TestType,
             };
             return editTestDto;
@@ -105,12 +107,14 @@ namespace TES.Services.Interface
 
             Test test = _context.Tests.Where(x => x.Id == editTestDto.Id).FirstOrDefault();
 
+            var TimeLimit = TimeSpan.FromMinutes(editTestDto.TimeLimit);
+
             test.Name = editTestDto.Name;
             test.Description = editTestDto.Description;
             test.Questions = editTestDto.Questions;
             test.ValidFrom = editTestDto.ValidFrom;
             test.ValidTo = editTestDto.ValidTo;
-            test.TimeLimit = editTestDto.TimeLimit;
+            test.TimeLimit = TimeLimit.Ticks;
             test.TestType = editTestDto.TestType;
 
             try
@@ -131,7 +135,7 @@ namespace TES.Services.Interface
             {
                 throw new ArgumentException("Valid To can't be a past date. Test must be valid to a certain day in future!");
             }
-            if (newTest.ValidFrom >= DateTime.Now)
+            if (newTest.ValidFrom <= DateTime.Now)
             {
                 throw new ArgumentException("Valid From can't be a past date. Test must be valid from a future date!");
             }
@@ -146,7 +150,12 @@ namespace TES.Services.Interface
 
             TestLink tstlnk = NewTestLink();
 
-            List<Question> questions = await NewTestQuestion(newTest.Questions);
+            List<Question> questions = NewTestQuestion(newTest.Questions);
+
+            //converting minutes to timeSpan & saving only ticks as int64 incase value is over 24hours.
+            //timespan values over 24hours can't be saved in db. 
+
+            var spanOfTime = TimeSpan.FromMinutes(newTest.TimeLimit);
 
             Test test = new Test
             {
@@ -157,23 +166,26 @@ namespace TES.Services.Interface
                 CreateTime = DateTime.Now,
                 ValidFrom = newTest.ValidFrom,
                 ValidTo = newTest.ValidTo,
-                TimeLimit = newTest.TimeLimit,
+                TimeLimit = spanOfTime.Ticks,
                 UrlLinkId = tstlnk,
             };
+
+            await GenerateUrl(test.UrlLinkId.Id);
 
             try
             {
                 _context.Tests.Add(test);
                 await _context.SaveChangesAsync();
-                return test;
             }
             catch (Exception)
             {
-                throw new ArgumentException("Test creation failed. Database failure found!");
+                throw new Exception("Test creation failed. Database failure found!");
             }
+
+            return test;
         }
 
-        public async Task<List<Question>> NewTestQuestion(List<NewTestQuestionDto> questionList)
+        public List<Question> NewTestQuestion(List<NewTestQuestionDto> questionList)
         {
             string uniqueFileName = null;
             List<Question> newTestQuestions = new List<Question>();
@@ -193,26 +205,26 @@ namespace TES.Services.Interface
 
                 Question newQuestion = new Question
                 {
-                    Description = question.Description,
                     Name = question.Name,
+                    Description = question.Description,
                     QuestionType = question.QuestionType,
                     WorthOfPoints = question.WorthOfPoints,
                     SolutionFilePath = uniqueFileName
                 };
 
-                try
-                {
-                    _context.Questions.Add(newQuestion);
-                    await _context.SaveChangesAsync();
-                    newTestQuestions.Add(newQuestion);
-                }
-                catch (Exception)
-                {
-                    throw new ArgumentException("Could not create Question.Database failure found!");
-                }
+                _context.Questions.Add(newQuestion);
+                newTestQuestions.Add(newQuestion);
             }
 
-            return newTestQuestions;
+            try
+            {
+                _context.SaveChangesAsync();
+                return newTestQuestions;
+            }
+            catch (Exception)
+            {
+                throw new ArgumentException("Could not create Question.Database failure found!");
+            }
         }
 
         public async Task<bool> DeleteTest(Guid id)

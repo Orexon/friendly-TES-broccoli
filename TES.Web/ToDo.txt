@@ -3,9 +3,8 @@ Validate token Issuer(requires provider? research) and reciever. Authorization F
 Exception Filters. Filter exceptions before they reach the app.
 
 cascade delete on test delete? 
-Fix TimeSpan. 
 
-Result display logika.
+Result display logic.
 
 File compile problem.
 

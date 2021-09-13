@@ -308,8 +308,8 @@ namespace TES.Data.Migrations
                     b.Property<int>("TestType")
                         .HasColumnType("int");
 
-                    b.Property<TimeSpan>("TimeLimit")
-                        .HasColumnType("time");
+                    b.Property<long>("TimeLimit")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid?>("UrlLinkIdId")
                         .HasColumnType("uniqueidentifier");

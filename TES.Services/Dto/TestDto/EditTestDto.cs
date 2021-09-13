@@ -35,6 +35,6 @@ namespace TES.Services.Dto.TestDto
         public DateTime ValidTo { get; set; }
 
         [Required(ErrorMessage = "TimeLimit is required!")]
-        public TimeSpan TimeLimit { get; set; }
+        public double TimeLimit { get; set; }
     }
 }
