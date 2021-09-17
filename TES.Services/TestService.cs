@@ -15,17 +15,17 @@ namespace TES.Services.Interface
     public class TestService : ITestService
     {
         private readonly Context _context;
-        private IHostingEnvironment _hostingEnvironment;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public TestService(Context context, IHostingEnvironment hostingEnvironment)
+        public TestService(Context context, IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
-            _hostingEnvironment = hostingEnvironment;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         public async Task<List<Test>> GetAllTests()
         {
-            List<Test> tests = await _context.Tests.ToListAsync();
+            List<Test> tests = await _context.Tests.Include(x=>x.UrlLinkId).ToListAsync();
             return tests;
         }
 
@@ -36,7 +36,7 @@ namespace TES.Services.Interface
             {
                 throw new ArgumentNullException($"Test with {id} does not exist");
             }
-            Test test = await _context.Tests.FindAsync(id);
+            Test test = await _context.Tests.Include(x => x.Questions).Include(x=>x.UrlLinkId).Where(x=>x.Id == id).FirstOrDefaultAsync();
             return test;
         }
 
@@ -197,10 +197,14 @@ namespace TES.Services.Interface
                 }   
                 else if(question.SubmittedSolution != null)
                 {
-                    string uploadsFolder = Path.Combine(_hostingEnvironment.ContentRootPath, "Uploads");
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.ContentRootPath, "Uploads");
                     uniqueFileName = Guid.NewGuid().ToString() + "_" + question.SubmittedSolution.FileName;
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    question.SubmittedSolution.CopyTo(new FileStream(filePath, FileMode.Create));
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        question.SubmittedSolution.CopyToAsync(stream);
+                    }
                 }
 
                 Question newQuestion = new Question
