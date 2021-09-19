@@ -47,14 +47,14 @@ namespace TES.Services.Interface
             {
                 throw new ArgumentNullException($"Test with {id} does not exist");
             }
-            if (await IsTestActive(id))
+            Test test = await _context.Tests.Include(x => x.Questions).Include(x => x.UrlLinkId).Where(x => x.Id == id).FirstOrDefaultAsync();
+
+            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
             {
                 throw new ArgumentException("Can't modify Test while it's active!");
             }
 
-            Test test = _context.Tests.Where(x => x.Id == id).FirstOrDefault();
-
-            var timelimit = TimeSpan.FromTicks(test.TimeLimit);
+            //var timelimit = TimeSpan.FromTicks(test.TimeLimit); Converting in Front-end.
 
             EditTestDto editTestDto = new EditTestDto
             {
@@ -64,8 +64,8 @@ namespace TES.Services.Interface
                 Questions = test.Questions, 
                 ValidFrom = test.ValidFrom, 
                 ValidTo = test.ValidTo,
-                TimeLimit = timelimit.TotalMinutes,
-                TestType= test.TestType,
+                TimeLimit = test.TimeLimit,
+                TestType = test.TestType,
             };
             return editTestDto;
         }
@@ -81,11 +81,6 @@ namespace TES.Services.Interface
             if (!TestExists(editTestDto.Id))
             {
                 throw new ArgumentException("Test no longer exists");
-            }
-
-            if (await IsTestActive(editTestDto.Id))
-            {
-                throw new ArgumentException("Can't modify Test while it's active!");
             }
 
             if (DateTime.Now > editTestDto.ValidTo)
@@ -106,6 +101,13 @@ namespace TES.Services.Interface
             }
 
             Test test = _context.Tests.Where(x => x.Id == editTestDto.Id).FirstOrDefault();
+
+            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
+            {
+                throw new ArgumentException("Can't modify Test while it's active!");
+            }
+
+            
 
             var TimeLimit = TimeSpan.FromMinutes(editTestDto.TimeLimit);
 
@@ -233,13 +235,13 @@ namespace TES.Services.Interface
 
         public async Task<bool> DeleteTest(Guid id)
         {
+            Test test = await GetTestById(id);
 
-            if (await IsTestActive(id))
+            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
             {
-                throw new ArgumentException("Can't modify Quesion with while it's active!");
+                throw new ArgumentException("Can't modify Test with while it's active!");
             }
 
-            Test test = await GetTestById(id);
             try
             {
                 _context.Tests.Remove(test);
@@ -270,7 +272,7 @@ namespace TES.Services.Interface
         public async Task<bool> IsTestActive(Guid id)
         {
             Test test = await GetTestById(id);
-            bool active = test.ValidFrom >= DateTime.Now && DateTime.Now >= test.ValidTo;
+            bool active = DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now;
             return active;
         }
 
