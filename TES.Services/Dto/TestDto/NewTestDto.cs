@@ -11,7 +11,8 @@ namespace TES.Services.Dto.TestDto
 {
     public class NewTestDto
     {
-        [StringLength(maximumLength: 24, MinimumLength = 3, ErrorMessage = "The test Name must be atleast 3 and at max 24 characters long.")]
+        public Guid Id { get; set; }
+
         [Required(ErrorMessage = "Test must be named!")]
         public string Name { get; set; }
 

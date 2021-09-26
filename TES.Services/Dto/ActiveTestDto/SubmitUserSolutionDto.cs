@@ -11,7 +11,7 @@ namespace TES.Services.Dto.ActiveTestDto
     public class SubmitUserSolutionDto
     {
         public Guid TestId { get; set; }
-        public Guid QuestionID { get; set; } //When FinishTest is unneeded.
+        public Guid QuestionID { get; set; } 
         public IFormFile SubmitedFile { get; set; }
         public string Email { get; set; }
     }

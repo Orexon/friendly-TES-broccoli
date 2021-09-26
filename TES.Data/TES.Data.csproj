@@ -14,8 +14,4 @@
     <ProjectReference Include="..\TES.Domain\TES.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Migrations\" />
-  </ItemGroup>
-
 </Project>

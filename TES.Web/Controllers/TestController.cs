@@ -80,7 +80,7 @@ namespace TES.Web.Controllers
         //PATCH: api/Test/editTest/Guid
         [HttpPatch]
         [Route("editTest/{id}")]
-        public async Task<IActionResult> UpdateTest([FromBody] EditTestDto editTestDto)
+        public async Task<IActionResult> UpdateTest([FromForm] NewTestDto editTestDto)
         {
             try
             {

@@ -11,9 +11,11 @@ namespace TES.Services.Interface
 {
     public interface IActiveTestService
     {
-        TestDto ActiveTest(Guid id);
+        ActiveTestBeforeDto ActiveTest(Guid id);
 
         Task<bool> StartTest(TestStartDto testStartDto);
+
+        Task<ActiveTestQuestionDto> GetTestQuestion(Guid id);
 
         Task<SolutionResponseDto> SubmitSolution(SubmitUserSolutionDto solutionDto);
 
@@ -25,6 +27,6 @@ namespace TES.Services.Interface
 
         Task<bool> SaveQuestionScore(SolutionResponseDto solutionResponseDto, double taskresult);
 
-        Task<double> FinishTest(SubmitUserSolutionDto solutionDto);
+        Task<double> FinishTest(FinishTestDto finishTestDto);
     }
 }

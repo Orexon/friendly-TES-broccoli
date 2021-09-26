@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
@@ -19,19 +20,19 @@ namespace TES.Services
     public class ActiveTestService : IActiveTestService
     {
         private readonly Context _context;
-        private IHostingEnvironment _hostingEnvironment;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
         private const string ProjContent = "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>netstandard2.0</TargetFramework><RuntimeFrameworkVersion>3.1.202</RuntimeFrameworkVersion></PropertyGroup></Project>";
-        public ActiveTestService(Context context, IHostingEnvironment hostingEnvironment)
+        public ActiveTestService(Context context, IWebHostEnvironment hostingEnvironment)
         {
-            _hostingEnvironment = hostingEnvironment;
+            _webHostEnvironment = hostingEnvironment;
             _context = context;
         }
 
         public bool TestExists(Guid id) =>
         _context.Tests.Any(e => e.Id == id);
 
-        public TestDto ActiveTest(Guid id)
+        public ActiveTestBeforeDto ActiveTest(Guid id)
         {
             TestLink testLink =  _context.TestLinks.Where(x => x.Id == id).FirstOrDefault();
             if (testLink == null)
@@ -39,7 +40,7 @@ namespace TES.Services
                 throw new ArgumentException("TestLink not found!");
             }
 
-            Test test = _context.Tests.Where(x => x.UrlLinkId == testLink).Include(x=>x.Questions).FirstOrDefault();
+            Test test = _context.Tests.Include(x=>x.UrlLinkId).Where(x => x.UrlLinkId == testLink).Include(x=>x.Questions).FirstOrDefault();
 
             if (!TestExists(test.Id))
             {
@@ -54,14 +55,14 @@ namespace TES.Services
             {
                 throw new ArgumentException("Test is not yet active. Try again later!");
             }
-                
-            TestDto testDto = new TestDto
+
+            ActiveTestBeforeDto testDto = new ActiveTestBeforeDto
             {
+                Id = test.Id,
                 Name = test.Name,
                 Description = test.Description,
-                Questions = test.Questions,
                 TestType = test.TestType,
-                TimeLimit = TimeSpan.FromTicks(test.TimeLimit),
+                TimeLimit = test.TimeLimit,
                 ValidFrom = test.ValidFrom,
                 ValidTo = test.ValidTo,
                 TestUrl = test.UrlLinkId,
@@ -77,7 +78,8 @@ namespace TES.Services
             }
 
             UniqueApplicant applicant = await NewApplicant(testStartDto.Email, testStartDto.FirstName, testStartDto.LastName);
-            Test test = await _context.Tests.FindAsync(testStartDto.TestId);
+
+            Test test = _context.Tests.Where(x => x.Id == testStartDto.TestId).Include(x => x.UrlLinkId).Include(x => x.Questions).FirstOrDefault();
 
             TestResult result = new TestResult
             {
@@ -98,6 +100,44 @@ namespace TES.Services
                 throw new ArgumentException("Test could not be started. Couldn't save start of the test. Try again!");
             }
 
+        }
+
+        public async Task<ActiveTestQuestionDto> GetTestQuestion(Guid id)
+        {
+
+            Test test = await _context.Tests.Where(x => x.Id == id).Include(x=>x.Questions).Include(x => x.UrlLinkId).FirstOrDefaultAsync();
+
+            List<Question> questions =  test.Questions;
+
+            List<ActiveQuestionDto> questionsDto = new List<ActiveQuestionDto>();
+
+            foreach (var question in questions)
+            {
+                ActiveQuestionDto active = new ActiveQuestionDto
+                {
+                    Id = question.Id,
+                    Description = question.Description,
+                    Name = question.Name,
+                    QuestionType = question.QuestionType,
+                    WorthOfPoints = question.WorthOfPoints
+                };
+                questionsDto.Add(active);
+            }
+
+            ActiveTestQuestionDto aTQDTO = new ActiveTestQuestionDto
+            {
+                Id = test.Id,
+                Description = test.Description,
+                Name = test.Name,
+                Questions = questionsDto,
+                TestType = test.TestType,
+                TestUrl = test.UrlLinkId,
+                TimeLimit = test.TimeLimit,
+                ValidFrom = test.ValidFrom,
+                ValidTo = test.ValidTo
+            };
+
+            return aTQDTO;
         }
 
         private async Task<UniqueApplicant> NewApplicant(string email, string firstName, string lastName)
@@ -137,10 +177,16 @@ namespace TES.Services
            
             if(solutionDto.SubmitedFile != null)
             {
-                string uploadsFolder = Path.Combine(_hostingEnvironment.ContentRootPath, "Uploads");
-                uniqueFileName = Guid.NewGuid().ToString() + "_" + solutionDto.SubmitedFile.FileName;
+                string uploadsFolder = Path.Combine(_webHostEnvironment.ContentRootPath, "Uploads");  
+                //AppContext.BaseDirectory; 
+
+                uniqueFileName = Guid.NewGuid().ToString() + solutionDto.SubmitedFile.FileName;
                 string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                solutionDto.SubmitedFile.CopyTo(new FileStream(filePath, FileMode.Create));
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await solutionDto.SubmitedFile.CopyToAsync(stream);
+                }
             }
 
             UniqueApplicant aplicant = _context.Applicant.Where(x => x.Email == solutionDto.Email).FirstOrDefault();
@@ -148,11 +194,12 @@ namespace TES.Services
             Test test = _context.Tests.Where(x => x.Id == solutionDto.TestId).FirstOrDefault();
 
             //Check if it's the first solution to this question, if not delete the last solution.
-            UserSolution uniqueSolution = await _context.UserSolutions.Where(x => x.Test.Id == test.Id && x.Question.Id == question.Id && x.AplicantId.Id == aplicant.Id).FirstOrDefaultAsync();
-            if(uniqueSolution.SubmitedFilePath.Length > 0)
+            bool SolutionAlreadyExists = _context.UserSolutions.Where(x => x.Test.Id == test.Id && x.Question.Id == question.Id && x.ApplicantId.Id == aplicant.Id).Any();
+            if (SolutionAlreadyExists)
             {
                 try
                 {
+                    UserSolution uniqueSolution = await _context.UserSolutions.Where(x => x.Test.Id == test.Id && x.Question.Id == question.Id && x.ApplicantId.Id == aplicant.Id).FirstOrDefaultAsync();
                     _context.UserSolutions.Remove(uniqueSolution);
                     await _context.SaveChangesAsync();
                 }
@@ -162,9 +209,10 @@ namespace TES.Services
                 }
             }
 
+
             UserSolution userSolution = new UserSolution
             {
-                AplicantId = aplicant,
+                ApplicantId = aplicant,
                 Question = question,
                 Test = test,
                 SubmitedFilePath = uniqueFileName
@@ -193,7 +241,6 @@ namespace TES.Services
 
         public async Task<string> GetSolutionPath(Guid id)
         {
-            
             Question question = await _context.Questions.Where(x => x.Id == id).FirstOrDefaultAsync();
             if (question == null)
             {
@@ -202,14 +249,13 @@ namespace TES.Services
             return question.SolutionFilePath;
         }
 
-
         public async Task<string> GetUserSolutionPath(SolutionResponseDto solutionResponseDto)
         {
             if(solutionResponseDto == null)
             {
                 throw new ArgumentException("Data transfer failure, try again!");
             }
-            UserSolution userSolution = await _context.UserSolutions.Where(x => x.Test.Id == solutionResponseDto.TestId && x.Question.Id == solutionResponseDto.QuestionId && x.AplicantId.Id == solutionResponseDto.ApplicantId).FirstOrDefaultAsync();
+            UserSolution userSolution = await _context.UserSolutions.Where(x => x.Test.Id == solutionResponseDto.TestId && x.Question.Id == solutionResponseDto.QuestionId && x.ApplicantId.Id == solutionResponseDto.ApplicantId).FirstOrDefaultAsync();
             return userSolution.SubmitedFilePath;
         }
 
@@ -230,7 +276,7 @@ namespace TES.Services
             {
                 throw new ArgumentException("Data transfer failure, try again!");
             }
-            UserSolution userSolution = await _context.UserSolutions.Where(x => x.Test.Id == solutionResponseDto.TestId && x.Question.Id == solutionResponseDto.QuestionId && x.AplicantId.Id == solutionResponseDto.ApplicantId).FirstOrDefaultAsync();
+            UserSolution userSolution = await _context.UserSolutions.Where(x => x.Test.Id == solutionResponseDto.TestId && x.Question.Id == solutionResponseDto.QuestionId && x.ApplicantId.Id == solutionResponseDto.ApplicantId).FirstOrDefaultAsync();
 
             userSolution.PointsScored = taskresult;
 
@@ -246,24 +292,41 @@ namespace TES.Services
             }
         }
 
-        public async Task<double> FinishTest(SubmitUserSolutionDto solutionDto)
+        public async Task<double> FinishTest(FinishTestDto finishTestDto)
         {
-            if (solutionDto == null)
+            if (finishTestDto == null)
             {
                 throw new ArgumentException("Solution data not found!");
             }
 
-            UniqueApplicant aplicant = _context.Applicant.Where(x => x.Email == solutionDto.Email).FirstOrDefault();
-            Test test = _context.Tests.Where(x => x.Id == solutionDto.TestId).FirstOrDefault();
+            UniqueApplicant applicant = _context.Applicant.Where(x => x.Email == finishTestDto.Email).FirstOrDefault();
+            Test test = _context.Tests.Where(x => x.Id == finishTestDto.TestId).FirstOrDefault();
 
-            TestResult testResult = await _context.Results.Where(x => x.Test.Id == test.Id && x.Applicant.Id == aplicant.Id).Include(x=>x.UserSolutions).FirstOrDefaultAsync();
+            TestResult testResult = await _context.Results.Where(x => x.Test.Id == test.Id && x.Applicant.Id == applicant.Id).FirstOrDefaultAsync();
 
+            DateTime date1 = testResult.StartedAt;
+            DateTime date2 = DateTime.Now;
 
-            TimeSpan difference = DateTime.Now.Subtract(testResult.StartedAt);
-            int minutes = difference.Minutes;
-            testResult.MinutesOvertime = minutes;
+            TimeSpan ts = date2 - date1;
 
-            List<UserSolution> userSolutions = testResult.UserSolutions;
+            double ticks = test.TimeLimit;
+            double days = Math.Floor(ticks / 864000000000);
+            double hours = Math.Round(ticks / 36000000000) % 24;
+            double mins = Math.Round((ticks / (60 * 10000000)) % 60);
+
+            double totalHours = days * 24 + hours;
+            double totalMinutes = totalHours * 60;
+            double totalSeconds = totalMinutes * 60;
+
+            TimeSpan testTimeLimit = TimeSpan.FromSeconds(totalSeconds); 
+            if(ts > testTimeLimit)
+            {
+                double min = ts.TotalMinutes - testTimeLimit.TotalMinutes;
+                int minutes = (int)Math.Round(min);
+                testResult.MinutesOvertime = minutes;
+            }
+            
+            List<UserSolution> userSolutions = await _context.UserSolutions.Where(x => x.Test.Id == test.Id && x.ApplicantId.Id == applicant.Id).ToListAsync();
 
             double TotalScore = 0;
 
@@ -287,7 +350,9 @@ namespace TES.Services
 
         public double TestScore(string argFile, string userSolution)
         {
-            string content = File.ReadAllText(userSolution);
+            string content = File.ReadAllText(Path.Combine(_webHostEnvironment.ContentRootPath, $"Uploads/{userSolution}"));
+            // File.ReadAllText(Path.Combine(AppContext.BaseDirectory, userSolution));
+            // Path.Combine(_webHostEnvironment.ContentRootPath, "Uploads/"+));
             bool canCompile = Compile(userSolution, content, out string generatedDll);
             if (!canCompile)
             {
@@ -295,25 +360,41 @@ namespace TES.Services
             }
             //File.WriteAllText(userSolution, content); //for testing restores Task.cs delete later
 
-            return RunTests(argFile, generatedDll);
+            double score = RunTests(argFile, generatedDll);
 
+           
+
+            try
+            {
+                SafeDeleteFile(Path.Combine(AppContext.BaseDirectory, userSolution));
+            }
+            catch (Exception)
+            {
+                throw new ArgumentException("Could not delete temp file. Try again");
+            }
+
+
+            return score;
         }
 
-        public bool Compile(string fileName, string content, out string generatedDll)
+        public static bool Compile(string fileName, string content, out string generatedDll)
         {
-            var directory = Path.Combine(_hostingEnvironment.ContentRootPath, "CoreCompilerTempFiles");
+            var directory = AppContext.BaseDirectory;
+            //"C:\\Users\\P3CK\\Desktop\\Examples\\TES Project\\Back-end\\tes-back-end\\TES.Web\\bin\\Debug\\net5.0"; 
+            //Path.Combine(_webHostEnvironment.ContentRootPath, "CoreCompilerTempFiles");
 
             var fullName = Path.Combine(directory, fileName);
             File.WriteAllText(fullName, content);
-
-            var globalJson = Path.Combine(directory, "global.json");
-            File.WriteAllText(globalJson, "{\r\n  \"sdk\": {\r\n    \"version\": \"5.0.204\"\r\n  }\r\n}");
+            
+            var globalJson = Path.Combine(directory, "global.json");            // 5.0.204 was before.
+            File.WriteAllText(globalJson, "{\r\n  \"sdk\": {\r\n    \"version\": \"5.0.302\"\r\n  }\r\n}");
 
             var projFile = Path.ChangeExtension(fullName, ".csproj");
             File.WriteAllText(projFile, ProjContent);
 
             generatedDll = Path.Combine(directory, $"bin\\Debug\\netstandard2.0\\{Path.GetFileNameWithoutExtension(fullName)}.dll");
 
+            //read on ProcessStartInfo 
             try
             {
                 var startInfo = new ProcessStartInfo
@@ -329,10 +410,9 @@ namespace TES.Services
                     return false;
 
                 process.WaitForExit();
-
+                //File.OpenRead(generatedDll); to check if file is valid readable etc.
                 return File.Exists(generatedDll);
-            }
-
+            } 
             catch (Exception)
             {
                 return false;
@@ -376,13 +456,13 @@ namespace TES.Services
             }
             catch
             {
-                // ignored
+                throw new ArgumentException("Error ocured while moving system files. File not found! Retry or Contact page Admin.");
             }
         }
 
-        public static double RunTests(string argFile, string generatedDll)
+        public double RunTests(string argFile, string generatedDll)
         {
-            string[] lines = File.ReadAllLines(argFile);
+            string[] lines = File.ReadAllLines(Path.Combine(_webHostEnvironment.ContentRootPath, $"Uploads/{argFile}"));
             double goodResults = 0;
             foreach (string line in lines)
             {
@@ -422,7 +502,7 @@ namespace TES.Services
                         else obj[i] = parts[i];
                     }
                 }
-                object result = Execute(generatedDll, "Task", "ElementTest", obj); //Lacks logic
+                object result = Execute(generatedDll, "TaskAnswer", "ElementTest", obj); //Lacks logic
                 Console.WriteLine(result + "    Expected: " + expected);
                 if (object.Equals(result.ToString(), expected.ToString())) goodResults++;
             }
@@ -481,7 +561,5 @@ namespace TES.Services
 
             return methodInfo.Invoke(testInstance, args);
         }
-
-
     }
 }

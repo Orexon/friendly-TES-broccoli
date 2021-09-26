@@ -14,7 +14,7 @@ namespace TES.Domain
         public DateTime CreateTime { get; set; }
         public DateTime ValidFrom { get; set; }
         public DateTime ValidTo { get; set; }
-        public Int64 TimeLimit { get; set; }
+        public long TimeLimit { get; set; }
         public List<TestResult> Results { get; set; }
         public TestLink UrlLinkId { get; set; }
 

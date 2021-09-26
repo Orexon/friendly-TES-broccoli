@@ -39,7 +39,7 @@ namespace TES.Web.Controllers
 
             try
             {
-                TestDto testDto = _activeTestService.ActiveTest(urlGuid);
+                ActiveTestBeforeDto testDto = _activeTestService.ActiveTest(urlGuid);
                 return Ok(testDto);
             }
             catch (Exception e)
@@ -51,12 +51,27 @@ namespace TES.Web.Controllers
         // POST: api/ActiveTest/startTest/{id}
         [HttpPost]
         [Route("startTest/{id}")]
-        [Produces(typeof(TestStartDto))]
-        public IActionResult StartTest(TestStartDto testStartDto)
+        public async Task<IActionResult> StartTest(TestStartDto testStartDto)
         {
             try
             {
-                return Ok(_activeTestService.StartTest(testStartDto));
+                bool result = await _activeTestService.StartTest(testStartDto);
+                return Ok(result);
+            }
+            catch (Exception e)
+            {
+                return NotFound(new ResponseDto { Status = "Error", Message = e.Message });
+            }
+        }
+
+        [HttpGet]
+        [Route("getTestQuestion/{id}")]
+        public async Task<IActionResult> GetTestQuestion(Guid id)
+        {
+            try
+            {
+                ActiveTestQuestionDto atqdto = await _activeTestService.GetTestQuestion(id);
+                return Ok(atqdto);
             }
             catch (Exception e)
             {
@@ -67,8 +82,7 @@ namespace TES.Web.Controllers
         // POST: api/ActiveTest/submitSolution/{id}
         [HttpPost]
         [Route("submitSolution/{id}")]
-        [Produces(typeof(SubmitionResultDto))]
-        public async Task<IActionResult> SubmitUserSolution(SubmitUserSolutionDto solutionDto)
+        public async Task<IActionResult> SubmitUserSolution([FromForm] SubmitUserSolutionDto solutionDto)
         {
             try
             {
@@ -97,16 +111,16 @@ namespace TES.Web.Controllers
             }
         }
 
-
         // POST: api/ActiveTest/finishTest/{id}
         [HttpPost]
         [Route("finishTest/{id}")]
         [Produces(typeof(SubmitionResultDto))]
-        public async Task<IActionResult> FinishTest(SubmitUserSolutionDto solutionDto)
+        public async Task<IActionResult> FinishTest(FinishTestDto finishTestDto)
         {
             try
             {
-                return Ok(await _activeTestService.FinishTest(solutionDto));
+                double points = await _activeTestService.FinishTest(finishTestDto);
+                return Ok(points);
             }
             catch (Exception e)
             {

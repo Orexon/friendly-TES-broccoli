@@ -47,9 +47,15 @@ namespace TES.Services.Interface
             {
                 throw new ArgumentNullException($"Test with {id} does not exist");
             }
+
+            if (await _context.UserSolutions.AnyAsync(x => x.Test.Id == id))
+            {
+                throw new Exception("Test cannot be modified when it already has answers. Please create a new Test!");
+            }
+
             Test test = await _context.Tests.Include(x => x.Questions).Include(x => x.UrlLinkId).Where(x => x.Id == id).FirstOrDefaultAsync();
 
-            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
+            if (DateTime.UtcNow >= test.ValidFrom && test.ValidTo >= DateTime.UtcNow)
             {
                 throw new ArgumentException("Can't modify Test while it's active!");
             }
@@ -70,7 +76,7 @@ namespace TES.Services.Interface
             return editTestDto;
         }
 
-        public async Task<bool> UpdateTest(EditTestDto editTestDto)
+        public async Task<bool> UpdateTest(NewTestDto editTestDto)
         {
 
             if (editTestDto == null)
@@ -83,41 +89,42 @@ namespace TES.Services.Interface
                 throw new ArgumentException("Test no longer exists");
             }
 
-            if (DateTime.Now > editTestDto.ValidTo)
+            if (editTestDto.ValidTo < DateTime.UtcNow) // If test is valid to right now. Test automatically is over. 
             {
                 throw new ArgumentException("Valid To can't be a past date. Test must be valid to a certain day in future!");
             }
-            if (editTestDto.ValidFrom > DateTime.Now)
+
+            if (editTestDto.ValidFrom <= DateTime.UtcNow)
             {
                 throw new ArgumentException("Valid From can't be a past date. Test must be valid from a future date!");
             }
+
             if (editTestDto.ValidFrom > editTestDto.ValidTo)
             {
                 throw new ArgumentException("Valid From must be a higher date than Valid To!");
             }
+
             if (!editTestDto.Questions.Any())
             {
                 throw new ArgumentException("Test must contain questions!");
             }
 
-            Test test = _context.Tests.Where(x => x.Id == editTestDto.Id).FirstOrDefault();
-
-            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
+            Test test = await _context.Tests.Include(x => x.Questions).Include(x => x.UrlLinkId).Where(x => x.Id == editTestDto.Id).FirstOrDefaultAsync();
+            if (DateTime.UtcNow >= test.ValidFrom && test.ValidTo >= DateTime.UtcNow)
             {
                 throw new ArgumentException("Can't modify Test while it's active!");
             }
 
-            
-
             var TimeLimit = TimeSpan.FromMinutes(editTestDto.TimeLimit);
+            List<Question> questions =  await EditTestQuestion(test.Questions, editTestDto.Questions);
 
             test.Name = editTestDto.Name;
             test.Description = editTestDto.Description;
-            test.Questions = editTestDto.Questions;
             test.ValidFrom = editTestDto.ValidFrom;
             test.ValidTo = editTestDto.ValidTo;
             test.TimeLimit = TimeLimit.Ticks;
             test.TestType = editTestDto.TestType;
+            test.Questions = questions;
 
             try
             {
@@ -131,13 +138,35 @@ namespace TES.Services.Interface
             }
         }
 
+        public async Task<List<Question>> EditTestQuestion(List<Question> questions, List<NewTestQuestionDto> questionList)
+        {
+            foreach (var question in questions)
+            {
+                if(await _context.UserSolutions.AnyAsync(x => x.Question.Id == question.Id))
+                {
+                    throw new Exception("Test cannot be modified while it's questions have answers. Please create a new Test!");
+                } else {
+                    try
+                    {
+                        _context.Questions.Remove(question);
+                    }
+                    catch (Exception)
+                    {
+                        throw new Exception("Could not update questions!");
+                    }
+                }
+            }
+            List<Question> NewQuestions = await NewTestQuestion(questionList);
+            return NewQuestions;
+        }
+
         public async Task<Test> CreateTest(NewTestDto newTest)
         {
-            if (newTest.ValidTo < DateTime.Now) // If test is valid to right now. Test automatically is over. 
+            if (newTest.ValidTo < DateTime.UtcNow) // If test is valid to right now. Test automatically is over. 
             {
                 throw new ArgumentException("Valid To can't be a past date. Test must be valid to a certain day in future!");
             }
-            if (newTest.ValidFrom <= DateTime.Now)
+            if (newTest.ValidFrom <= DateTime.UtcNow)
             {
                 throw new ArgumentException("Valid From can't be a past date. Test must be valid from a future date!");
             }
@@ -152,7 +181,7 @@ namespace TES.Services.Interface
 
             TestLink tstlnk = NewTestLink();
 
-            List<Question> questions = NewTestQuestion(newTest.Questions);
+            List<Question> questions = await NewTestQuestion(newTest.Questions);
 
             //converting minutes to timeSpan & saving only ticks as int64 incase value is over 24hours.
             //timespan values over 24hours can't be saved in db. 
@@ -165,7 +194,7 @@ namespace TES.Services.Interface
                 Description = newTest.Description,
                 Questions = questions,
                 TestType = newTest.TestType,
-                CreateTime = DateTime.Now,
+                CreateTime = DateTime.UtcNow,
                 ValidFrom = newTest.ValidFrom,
                 ValidTo = newTest.ValidTo,
                 TimeLimit = spanOfTime.Ticks,
@@ -187,7 +216,7 @@ namespace TES.Services.Interface
             return test;
         }
 
-        public List<Question> NewTestQuestion(List<NewTestQuestionDto> questionList)
+        public async Task<List<Question>> NewTestQuestion(List<NewTestQuestionDto> questionList)
         {
             string uniqueFileName = null;
             List<Question> newTestQuestions = new List<Question>();
@@ -199,13 +228,15 @@ namespace TES.Services.Interface
                 }   
                 else if(question.SubmittedSolution != null)
                 {
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.ContentRootPath, "Uploads");
+
+                    string uploadsFolder = Path.Combine(_webHostEnvironment.ContentRootPath, "Uploads");  
+                    //AppContext.BaseDirectory  - either save everything to base & or save to Uploads & copy -> do smth -> delete the file from base dir. 
                     uniqueFileName = Guid.NewGuid().ToString() + "_" + question.SubmittedSolution.FileName;
                     string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                     using (var stream = new FileStream(filePath, FileMode.Create))
                     {
-                        question.SubmittedSolution.CopyToAsync(stream);
+                        await question.SubmittedSolution.CopyToAsync(stream);
                     }
                 }
 
@@ -224,7 +255,7 @@ namespace TES.Services.Interface
 
             try
             {
-                _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
                 return newTestQuestions;
             }
             catch (Exception)
@@ -237,9 +268,14 @@ namespace TES.Services.Interface
         {
             Test test = await GetTestById(id);
 
-            if (DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now)
+            if (DateTime.UtcNow >= test.ValidFrom && test.ValidTo >= DateTime.UtcNow)
             {
                 throw new ArgumentException("Can't modify Test with while it's active!");
+            }
+
+            if (await _context.UserSolutions.AnyAsync(x => x.Test.Id == test.Id))
+            {
+                throw new Exception("Test cannot be modified when it already has answers. Please create a new Test!");
             }
 
             try
@@ -272,7 +308,7 @@ namespace TES.Services.Interface
         public async Task<bool> IsTestActive(Guid id)
         {
             Test test = await GetTestById(id);
-            bool active = DateTime.Now >= test.ValidFrom && test.ValidTo >= DateTime.Now;
+            bool active = DateTime.UtcNow >= test.ValidFrom && test.ValidTo >= DateTime.UtcNow;
             return active;
         }
 

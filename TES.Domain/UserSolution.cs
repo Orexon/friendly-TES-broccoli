@@ -13,7 +13,7 @@ namespace TES.Domain
         public Test Test { get; set; } 
         public Question Question { get; set; } 
         public string SubmitedFilePath { get; set; } 
-        public UniqueApplicant AplicantId { get; set; }
+        public UniqueApplicant ApplicantId { get; set; }
         public double PointsScored { get; set; }
     }
 }

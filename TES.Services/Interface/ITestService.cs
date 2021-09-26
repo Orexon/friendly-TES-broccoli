@@ -13,7 +13,7 @@ namespace TES.Services.Interface
         Task<List<Test>> GetAllTests();
         Task<Test> GetTestById(Guid id);
         Task<EditTestDto> GetEditTestDto(Guid id);
-        Task<bool> UpdateTest(EditTestDto editTestDto);
+        Task<bool> UpdateTest(NewTestDto editTestDto);
         Task<Test> CreateTest(NewTestDto newTest);
         Task<bool> GenerateUrl(Guid Id);
         Task<bool> DeleteTest(Guid id);

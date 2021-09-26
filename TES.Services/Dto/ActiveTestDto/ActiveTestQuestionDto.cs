@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TES.Domain;
 using TES.Domain.Helpers;
+using TES.Services.Dto.ActiveTestDto;
 
 namespace TES.Services.Dto.TestDto
 {
@@ -18,6 +19,7 @@ namespace TES.Services.Dto.TestDto
         public DateTime ValidTo { get; set; }
         public Int64 TimeLimit { get; set; }
         public TestLink TestUrl { get; set; }
-        public List<Question> Questions { get; set; }
+        public List<ActiveQuestionDto> Questions { get; set; }
+
     }
 }

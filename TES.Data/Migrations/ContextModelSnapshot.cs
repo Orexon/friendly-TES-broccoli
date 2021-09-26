@@ -397,7 +397,7 @@ namespace TES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("AplicantIdId")
+                    b.Property<Guid?>("ApplicantIdId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<double>("PointsScored")
@@ -417,7 +417,7 @@ namespace TES.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AplicantIdId");
+                    b.HasIndex("ApplicantIdId");
 
                     b.HasIndex("QuestionId");
 
@@ -512,9 +512,9 @@ namespace TES.Data.Migrations
 
             modelBuilder.Entity("TES.Domain.UserSolution", b =>
                 {
-                    b.HasOne("TES.Domain.UniqueApplicant", "AplicantId")
+                    b.HasOne("TES.Domain.UniqueApplicant", "ApplicantId")
                         .WithMany()
-                        .HasForeignKey("AplicantIdId");
+                        .HasForeignKey("ApplicantIdId");
 
                     b.HasOne("TES.Domain.Question", "Question")
                         .WithMany()
@@ -528,7 +528,7 @@ namespace TES.Data.Migrations
                         .WithMany("UserSolutions")
                         .HasForeignKey("TestResultId");
 
-                    b.Navigation("AplicantId");
+                    b.Navigation("ApplicantId");
 
                     b.Navigation("Question");
 
